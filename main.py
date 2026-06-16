@@ -3,7 +3,7 @@ from telegram.ext import Application, CommandHandler, MessageHandler, ContextTyp
 import os
 
 # 🔐 امن‌تر برای Render
-TOKEN = os.getenv("8587610117:AAGF0-43mGPIK8VvcmIEPa85KFX_eQ-wgN4")
+TOKEN = os.getenv("BOT_TOKEN")
 ADMIN_ID = 1619270337
 
 message_map = {}
