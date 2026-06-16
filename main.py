@@ -1,174 +1,139 @@
 from telegram import Update, ReplyKeyboardMarkup
 from telegram.ext import Application, CommandHandler, MessageHandler, ContextTypes, filters
-import os
 
-# 🔐 امن‌تر برای Render
+import os
 TOKEN = os.getenv("BOT_TOKEN")
 ADMIN_ID = 1619270337
 
-message_map = {}
-waiting = set()
 users = set()
+messages = []
 user_lang = {}
 
+# ---------------- LANGS ----------------
 texts = {
     "fa": {
-        "welcome": "سلام 🤍\nبرای ارسال پیام دکمه رو بزن:",
-        "type": "پیامتو بنویس 👋",
-        "sent": "پیام شما ارسال شد 🩷",
-        "admin": "🔧 پنل ادمین"
+        "welcome": "سلام 🤍\nپیامت رو بفرست:",
+        "sent": "پیام شما ارسال شد 🩷"
     },
     "en": {
-        "welcome": "Welcome 🤍\nTap to send message:",
-        "type": "Type your message 👋",
-        "sent": "Your message has been sent 🩷",
-        "admin": "🔧 Admin panel"
+        "welcome": "Hi 🤍\nSend your message:",
+        "sent": "Your message was sent 🩷"
+    },
+    "ar": {
+        "welcome": "مرحبا 🤍\nأرسل رسالتك:",
+        "sent": "تم إرسال رسالتك 🩷"
+    },
+    "ru": {
+        "welcome": "Привет 🤍\nОтправь сообщение:",
+        "sent": "Сообщение отправлено 🩷"
     }
 }
 
-def get_lang(uid):
-    return user_lang.get(uid, "fa")
-
 # ---------------- START ----------------
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    uid = update.message.from_user.id
-    users.add(uid)
+    user_id = update.effective_user.id
+    users.add(user_id)
 
-    lang = get_lang(uid)
-
-    keyboard = [["✉️ Send Message"], ["🌐 Change Language"]]
-
-    if uid == ADMIN_ID:
-        keyboard.append(["🔧 Admin Panel"])
-
-    await update.message.reply_text(
-        texts[lang]["welcome"],
-        reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
-    )
-
-# ---------------- ADMIN PANEL ----------------
-async def admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if update.message.from_user.id != ADMIN_ID:
-        return
-
-    keyboard = [
-        ["📨 View Messages"],
-        ["📊 Stats"],
-        ["📢 Broadcast"],
-        ["🔙 Back"]
-    ]
-
-    await update.message.reply_text(
-        texts["fa"]["admin"],
-        reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
-    )
-
-# ---------------- LANGUAGE ----------------
-async def change_lang(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
         ["🇮🇷 فارسی", "🇬🇧 English"],
-        ["🇸🇦 العربية", "🇷🇺 Русский"]
+        ["🇸🇦 العربية", "🇷🇺 Русский"],
+        ["👮 Admin Panel"]
     ]
 
     await update.message.reply_text(
-        "🌐 Choose language",
+        "Choose language 👇",
         reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
     )
 
 # ---------------- HANDLE ----------------
 async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user = update.message.from_user
     text = update.message.text
-    uid = user.id
+    user_id = update.effective_user.id
 
-    lang = get_lang(uid)
+    users.add(user_id)
 
-    if text == "🌐 Change Language":
-        await change_lang(update, context)
-        return
+    # ---------------- LANGUAGE ----------------
+    if text == "🇮🇷 فارسی":
+        user_lang[user_id] = "fa"
+        await update.message.reply_text(texts["fa"]["welcome"])
 
-    if text in ["🇮🇷 فارسی", "🇬🇧 English", "🇸🇦 العربية", "🇷🇺 Русский"]:
-        mapping = {
-            "🇮🇷 فارسی": "fa",
-            "🇬🇧 English": "en",
-            "🇸🇦 العربية": "ar",
-            "🇷🇺 Русский": "ru"
-        }
-        user_lang[uid] = mapping[text]
-        await start(update, context)
-        return
+    elif text == "🇬🇧 English":
+        user_lang[user_id] = "en"
+        await update.message.reply_text(texts["en"]["welcome"])
 
-    if text == "🔧 Admin Panel":
-        await admin_panel(update, context)
-        return
+    elif text == "🇸🇦 العربية":
+        user_lang[user_id] = "ar"
+        await update.message.reply_text(texts["ar"]["welcome"])
 
-    if text == "🔙 Back":
-        await start(update, context)
-        return
+    elif text == "🇷🇺 Русский":
+        user_lang[user_id] = "ru"
+        await update.message.reply_text(texts["ru"]["welcome"])
 
-    if text == "📨 View Messages" and uid == ADMIN_ID:
-        if not message_map:
-            await update.message.reply_text("No messages yet.")
-            return
-
-        msg = "📨 Messages:\n\n"
-        for mid, u in list(message_map.items())[-10:]:
-            msg += f"User: {u} | MsgID: {mid}\n"
-
-        await update.message.reply_text(msg)
-        return
-
-    if text == "📊 Stats" and uid == ADMIN_ID:
+    # ---------------- ADMIN PANEL ----------------
+    elif text == "👮 Admin Panel" and user_id == ADMIN_ID:
+        keyboard = [
+            ["📨 View Messages"],
+            ["📊 Stats"],
+            ["📢 Broadcast"],
+            ["🔙 Back"]
+        ]
         await update.message.reply_text(
-            f"Users: {len(users)}\nMessages: {len(message_map)}"
+            "Admin Panel 👇",
+            reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
         )
-        return
 
-    if text == "📢 Broadcast" and uid == ADMIN_ID:
-        waiting.add(uid)
-        await update.message.reply_text("Send message for all users 👇")
-        return
+    # ---------------- VIEW MESSAGES ----------------
+    elif text == "📨 View Messages" and user_id == ADMIN_ID:
+        if not messages:
+            await update.message.reply_text("No messages yet.")
+        else:
+            for msg in messages[-10:]:
+                await update.message.reply_text(
+                    f"👤 ID: {msg['user_id']}\n💬 {msg['text']}"
+                )
 
-    if uid in waiting and uid == ADMIN_ID:
-        waiting.remove(uid)
+    # ---------------- STATS ----------------
+    elif text == "📊 Stats" and user_id == ADMIN_ID:
+        await update.message.reply_text(f"👥 Users: {len(users)}")
 
-        for u in users:
+    # ---------------- BROADCAST ----------------
+    elif text.startswith("/broadcast") and user_id == ADMIN_ID:
+        msg = text.replace("/broadcast", "").strip()
+
+        for uid in users:
             try:
-                await context.bot.send_message(chat_id=u, text=f"📢 {text}")
+                await context.bot.send_message(uid, msg)
             except:
                 pass
 
-        await update.message.reply_text("Sent ✔️")
-        return
+        await update.message.reply_text("Broadcast sent ✔️")
 
-    if text == "✉️ Send Message":
-        waiting.add(uid)
-        await update.message.reply_text(texts[lang]["type"])
-        return
+    # ---------------- BACK ----------------
+    elif text == "🔙 Back" and user_id == ADMIN_ID:
+        await start(update, context)
 
-    if uid in waiting and uid != ADMIN_ID:
-        waiting.remove(uid)
+    # ---------------- NORMAL USER MESSAGE ----------------
+    else:
+        messages.append({
+            "user_id": user_id,
+            "text": text
+        })
 
-        sent = await context.bot.send_message(
-            chat_id=ADMIN_ID,
-            text=f"📩 New message from {uid}:\n\n{text}"
+        lang = user_lang.get(user_id, "fa")
+
+        await update.message.reply_text(
+            texts[lang]["sent"],
+            reply_to_message_id=update.message.message_id
         )
-
-        message_map[sent.message_id] = uid
-
-        await update.message.reply_text(texts[lang]["sent"])
-        return
 
 # ---------------- MAIN ----------------
 def main():
     app = Application.builder().token(TOKEN).build()
 
     app.add_handler(CommandHandler("start", start))
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle))
+    app.add_handler(MessageHandler(filters.TEXT, handle))
 
     print("Bot started...")
+    app.run_polling()
 
-    app.run_polling(drop_pending_updates=True)
-
-if __name__ == "__main__":
-    main()
+if name == "__main__": main()
