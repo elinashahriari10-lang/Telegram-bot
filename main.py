@@ -1,7 +1,7 @@
 from telegram import Update, ReplyKeyboardMarkup
 from telegram.ext import Application, CommandHandler, MessageHandler, ContextTypes, filters
-
 import os
+
 TOKEN = os.getenv("BOT_TOKEN")
 ADMIN_ID = 1619270337
 
@@ -9,24 +9,15 @@ users = set()
 messages = []
 user_lang = {}
 
+# برای ریپلای واقعی
+pending_reply = {}
+
 # ---------------- LANGS ----------------
 texts = {
-    "fa": {
-        "welcome": "سلام 🤍\nپیامت رو بفرست:",
-        "sent": "پیام شما ارسال شد 🩷"
-    },
-    "en": {
-        "welcome": "Hi 🤍\nSend your message:",
-        "sent": "Your message was sent 🩷"
-    },
-    "ar": {
-        "welcome": "مرحبا 🤍\nأرسل رسالتك:",
-        "sent": "تم إرسال رسالتك 🩷"
-    },
-    "ru": {
-        "welcome": "Привет 🤍\nОтправь сообщение:",
-        "sent": "Сообщение отправлено 🩷"
-    }
+    "fa": {"welcome": "سلام 🤍\nپیامت رو بفرست:", "sent": "پیام شما ارسال شد 🩷"},
+    "en": {"welcome": "Hi 🤍\nSend your message:", "sent": "Your message was sent 🩷"},
+    "ar": {"welcome": "مرحبا 🤍\nأرسل رسالتك:", "sent": "تم إرسال رسالتك 🩷"},
+    "ru": {"welcome": "Привет 🤍\nОтправь сообщение:", "sent": "Сообщение отправлено 🩷"}
 }
 
 # ---------------- START ----------------
@@ -47,10 +38,29 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # ---------------- HANDLE ----------------
 async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    global pending_reply
+
     text = update.message.text
     user_id = update.effective_user.id
 
     users.add(user_id)
+
+    # ---------------- REPLY SYSTEM ----------------
+    if user_id == ADMIN_ID and update.message.reply_to_message:
+        original_text = update.message.reply_to_message.text
+
+        # پیدا کردن user_id از پیام‌های ذخیره شده
+        for msg in messages:
+            if msg["text"] in original_text:
+                target_id = msg["user_id"]
+
+                try:
+                    await context.bot.send_message(target_id, text)
+                    await update.message.reply_text("✅ پاسخ ارسال شد")
+                except:
+                    await update.message.reply_text("❌ ارسال نشد")
+
+                return
 
     # ---------------- LANGUAGE ----------------
     if text == "🇮🇷 فارسی":
@@ -97,22 +107,26 @@ async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(f"👥 Users: {len(users)}")
 
     # ---------------- BROADCAST ----------------
-    elif text.startswith("/broadcast") and user_id == ADMIN_ID:
-        msg = text.replace("/broadcast", "").strip()
+    elif text == "📢 Broadcast" and user_id == ADMIN_ID:
+        context.user_data["broadcast"] = True
+        await update.message.reply_text("📢 پیام مورد نظر را ارسال کنید:")
+
+    elif context.user_data.get("broadcast") and user_id == ADMIN_ID:
+        context.user_data["broadcast"] = False
 
         for uid in users:
             try:
-                await context.bot.send_message(uid, msg)
+                await context.bot.send_message(uid, text)
             except:
                 pass
 
-        await update.message.reply_text("Broadcast sent ✔️")
+        await update.message.reply_text("✅ پیام برای همه ارسال شد.")
 
     # ---------------- BACK ----------------
     elif text == "🔙 Back" and user_id == ADMIN_ID:
         await start(update, context)
 
-    # ---------------- NORMAL USER MESSAGE ----------------
+    # ---------------- USER MESSAGE ----------------
     else:
         messages.append({
             "user_id": user_id,
@@ -136,4 +150,5 @@ def main():
     print("Bot started...")
     app.run_polling()
 
-if name == "__main__": main()
+if __name__ == "__main__":
+    main()
