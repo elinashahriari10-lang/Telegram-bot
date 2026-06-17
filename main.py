@@ -9,10 +9,7 @@ users = set()
 messages = []
 user_lang = {}
 
-# برای ریپلای واقعی
-pending_reply = {}
-
-# ---------------- LANGS ----------------
+# ---------------- LANG TEXTS ----------------
 texts = {
     "fa": {"welcome": "سلام 🤍\nپیامت رو بفرست:", "sent": "پیام شما ارسال شد 🩷"},
     "en": {"welcome": "Hi 🤍\nSend your message:", "sent": "Your message was sent 🩷"},
@@ -38,8 +35,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # ---------------- HANDLE ----------------
 async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    global pending_reply
-
     text = update.message.text
     user_id = update.effective_user.id
 
@@ -47,15 +42,14 @@ async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # ---------------- REPLY SYSTEM ----------------
     if user_id == ADMIN_ID and update.message.reply_to_message:
-        original_text = update.message.reply_to_message.text
+        replied_text = update.message.reply_to_message.text
 
-        # پیدا کردن user_id از پیام‌های ذخیره شده
         for msg in messages:
-            if msg["text"] in original_text:
+            if msg["text"] == replied_text:
                 target_id = msg["user_id"]
 
                 try:
-                    await context.bot.send_message(target_id, text)
+                    await context.bot.send_message(chat_id=target_id, text=text)
                     await update.message.reply_text("✅ پاسخ ارسال شد")
                 except:
                     await update.message.reply_text("❌ ارسال نشد")
@@ -116,7 +110,7 @@ async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         for uid in users:
             try:
-                await context.bot.send_message(uid, text)
+                await context.bot.send_message(chat_id=uid, text=text)
             except:
                 pass
 
